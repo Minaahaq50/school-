@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <title>لوحة الطالب</title>
+  <style>
+    body {
+      font-family: 'Cairo', sans-serif;
+      background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
+      margin: 0;
+      padding: 0;
+      color: #fff;
+    }
+    header {
+      background: #1e1e1e;
+      padding: 20px;
+      text-align: center;
+      font-size: 22px;
+      font-weight: bold;
+      color: #ffcc00;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.6);
+      letter-spacing: 1px;
+    }
+    .container {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 20px;
+      padding: 25px;
+    }
+    .card {
+      background: rgba(30,30,30,0.95);
+      padding: 25px;
+      border-radius: 14px;
+      text-align: center;
+      box-shadow: 0 6px 15px rgba(0,0,0,0.6);
+      border: 1px solid #333;
+      transition: transform 0.3s;
+    }
+    .card:hover { transform: scale(1.02); }
+    .card h2 { margin: 0 0 15px; color: #4CAF50; font-size: 20px; }
+    input, select, button {
+      width: 100%; padding: 14px; margin: 10px 0;
+      border-radius: 8px; border: none; font-size: 15px;
+    }
+    input, select {
+      background: #2a2a2a; color: white; border: 1px solid #444;
+    }
+    input:focus, select:focus {
+      outline: none; border-color: #ffcc00; box-shadow: 0 0 8px #ffcc00;
+    }
+    button {
+      background: linear-gradient(90deg, #ffcc00, #ff9900);
+      color: #1e1e1e; font-weight: bold; cursor: pointer; transition: 0.3s;
+    }
+    button:hover { background: linear-gradient(90deg, #ffdb4d, #ffaa33); }
+    .hidden { display: none; }
+    .message {
+      margin-top: 12px; padding: 12px; border-radius: 8px;
+      font-weight: bold; font-size: 15px; text-align: center;
+    }
+    .success { background: #2e7d32; border: 1px solid #1b5e20; }
+    .error   { background: #d32f2f; border: 1px solid #9a0007; }
+    .warning { background: #fbc02d; color: #000; border: 1px solid #c17900; }
+    .loading { background: #0288d1; border: 1px solid #01579b; }
+
+    /* شاشة التحميل */
+    #loadingOverlay {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,0.95); display: none;
+      align-items: center; justify-content: center;
+      font-size: 22px; color: #ffcc00; z-index: 999;
+      flex-direction: column; font-weight: bold; letter-spacing: 1px;
+    }
+    #loadingOverlay.active { display: flex; }
+    .spinner {
+      border: 6px solid #444; border-top: 6px solid #ffcc00;
+      border-radius: 50%; width: 50px; height: 50px;
+      animation: spin 1s linear infinite; margin-bottom: 15px;
+    }
+    @keyframes spin { 100% { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+
+<header>📌 لوحة الطالب - مدرسة الأمير تادرس</header>
+
+<div class="container">
+
+  <!-- بيانات الطالب -->
+  <div class="card">
+    <h2>👤 تسجيل بيانات الطالب</h2>
+    <p style="color:#bbb; font-size:15px; margin-bottom:15px;">
+      من فضلك أدخل بياناتك بدقة ليتم تفعيل لوحة الطالب الخاصة بك
+    </p>
+
+    <label for="studentName" style="display:block; text-align:right; margin:5px 0;">✍️ اسم الطالب</label>
+    <input type="text" id="studentName" placeholder="اكتب اسمك الثلاثي">
+
+    <label for="studentClass" style="display:block; text-align:right; margin:5px 0;">🎓 السنة الدراسية</label>
+    <select id="studentClass">
+      <option value="">-- اختر السنة --</option>
+      <option value="إعدادي">إعدادي</option>
+      <option value="ثانوي">ثانوي</option>
+      <option value="جامعة">جامعة</option>
+    </select>
+
+    <label for="studentPhone" style="display:block; text-align:right; margin:5px 0;">📱 رقم الموبايل</label>
+    <input type="tel" id="studentPhone" placeholder="11 رقم فقط" maxlength="11">
+
+    <button onclick="saveStudent()" style="margin-top:15px; font-size:17px; font-weight:bold;">
+      💾 حفظ وتفعيل الحساب
+    </button>
+
+    <p id="studentInfo" class="message warning" style="margin-top:15px;">
+      ⚠️ لم تقم بتسجيل بياناتك بعد
+    </p>
+  </div>
+
+  <!-- الحضور -->
+  <div class="card hidden" id="attendanceSection">
+    <h2>⏰ الحضور</h2>
+    <button onclick="sendAttendance()">✅ تسجيل حضوري</button>
+    <p id="attendanceStatus" class="message warning">⚠️ لم تسجل حضورك بعد</p>
+  </div>
+
+  <!-- الامتحانات -->
+  <div class="card hidden" id="examSection">
+    <h2>📝 الامتحانات</h2>
+    <div id="examList" class="message loading">⏳ جارِ التحميل...</div>
+  </div>
+
+</div>
+
+<!-- شاشة اللودنج -->
+<div id="loadingOverlay">
+  <div class="spinner"></div>
+  ⏳ جاري حفظ البيانات...
+</div>
+
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/9.6.11/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.6.11/firebase-database.js"></script>
+
+<script>
+  // ✅ إعدادات Firebase
+  const firebaseConfig = {
+    apiKey: "AIzaSyDqkS7udZdgZqKWkw2Wvdx0aWbjU8EfCg8",
+    authDomain: "drosk-622f6.firebaseapp.com",
+    databaseURL: "https://drosk-622f6-default-rtdb.firebaseio.com",
+    projectId: "drosk-622f6",
+    storageBucket: "drosk-622f6.firebasestorage.app",
+    messagingSenderId: "765071631440",
+    appId: "1:765071631440:web:a2305e478babc4534add55",
+    measurementId: "G-2SL3D7TCQE"
+  };
+
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.database();
+
+  let studentData = {};
+
+  // ✅ حفظ بيانات الطالب
+  function saveStudent(){
+    const name = document.getElementById("studentName").value.trim();
+    const studentClass = document.getElementById("studentClass").value;
+    const phone = document.getElementById("studentPhone").value.trim();
+
+    if(!name || !studentClass || !phone){
+      showMessage("studentInfo","❌ يجب إدخال جميع البيانات","error");
+      return;
+    }
+    if(!/^[0-9]{11}$/.test(phone)){
+      showMessage("studentInfo","❌ رقم الموبايل يجب أن يكون 11 رقم فقط","error");
+      return;
+    }
+
+    // إظهار شاشة التحميل
+    document.getElementById("loadingOverlay").classList.add("active");
+
+    setTimeout(()=>{
+      studentData = {name, class:studentClass, phone};
+
+      db.ref("students/" + phone).set({
+        name: name,
+        class: studentClass,
+        phone: phone,
+        timestamp: new Date().toISOString()
+      }).then(()=>{
+        showMessage("studentInfo",`✅ تم حفظ بياناتك: ${name} - ${studentClass} - ${phone}`,"success");
+        document.getElementById("attendanceSection").classList.remove("hidden");
+        document.getElementById("examSection").classList.remove("hidden");
+        loadExams();
+        document.getElementById("loadingOverlay").classList.remove("active");
+      }).catch((err)=>{
+        showMessage("studentInfo","❌ خطأ في الحفظ: "+err.message,"error");
+        document.getElementById("loadingOverlay").classList.remove("active");
+      });
+    },2000);
+  }
+
+  // ✅ تسجيل الحضور
+  function sendAttendance(){
+    if(!studentData.name){
+      showMessage("attendanceStatus","❌ أدخل بياناتك أولاً","error");
+      return;
+    }
+    const today = new Date().toISOString().split("T")[0];
+    db.ref("attendance/" + studentData.phone + "/" + today).set({
+      name: studentData.name,
+      class: studentData.class,
+      phone: studentData.phone,
+      date: today,
+      time: new Date().toLocaleTimeString()
+    }).then(()=>{
+      showMessage("attendanceStatus","✅ تم تسجيل حضورك بنجاح","success");
+    }).catch((err)=>{
+      showMessage("attendanceStatus","❌ خطأ في تسجيل الحضور: "+err.message,"error");
+    });
+  }
+
+  // ✅ تحميل الامتحانات (تجريبي)
+  function loadExams(){
+    const exams = [
+      {name:"امتحان لحان", link:"#"},
+      {name:"امتحان قبطي", link:"#"},
+      {name:"امتحان طقس", link:"#"}
+    ];
+    let html = "";
+    exams.forEach(e=>{
+      html += `<div class="message success">📘 ${e.name} <br><a href="${e.link}" style="color:#fff; text-decoration:underline;">🚀 دخول</a></div>`;
+    });
+    document.getElementById("examList").innerHTML = html;
+  }
+
+  // ✅ عرض رسالة
+  function showMessage(id,text,type){
+    const el = document.getElementById(id);
+    el.innerText = text;
+    el.className = "message "+type;
+    el.classList.remove("hidden");
+  }
+</script>
+
+</body>
+</html>
